@@ -83,10 +83,6 @@ def _is_inverse_label_transform():
 
 def _is_feature_transform():
     """Returns True if it's running in feature transform mode."""
-    print("===+++")
-    print(os.environ['SAGEMAKER_REGION'])
-    print(os.environ['TRANSFORM_MODE'])
-    print(os.getenv('TRANSFORM_MODE'))
     return os.getenv('TRANSFORM_MODE') == 'feature-transform'
 
 
@@ -170,7 +166,7 @@ def input_fn(input_data, request_content_type):
     content_type = content_type.split(";")[0].strip()
     
     print(content_type)
-    print(input_data)
+#    print(input_data)
     
     print("****** It is input type")
     print(type(input_data))
@@ -188,7 +184,7 @@ def input_fn(input_data, request_content_type):
         print("It is byte")
         str_buffer = str(input_data,'utf-8')
     
-    print(str_buffer)
+#    print(str_buffer)
 #     s=str(byte_buffer,'utf-8')
 #     print(s)
     
@@ -211,11 +207,8 @@ def input_fn(input_data, request_content_type):
     if _is_inverse_label_transform():
         if (content_type == 'text/csv' or content_type == 'text/csv; charset=utf-8'):
             # Read the raw input data as CSV.
-#             val = read_csv_data(source=byte_buffer)
-
-#             print(val.head())
-#             return val
             df = pd.read_csv(StringIO(str_buffer),  header=None)
+            df.iloc
             print(df.head())
             logging.info(f"Shape of the requested data: '{df.shape}'")
             return df
@@ -280,7 +273,8 @@ def predict_fn(input_data, model):
     
     
     if _is_inverse_label_transform():
-        features = input_data.values
+        features = input_data.iloc[:,0]>0.5
+        features = features.values
         return features
     
 
