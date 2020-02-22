@@ -18,7 +18,6 @@ from sklearn.externals import joblib
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import Binarizer, StandardScaler, OneHotEncoder
-#from sagemaker_sklearn_extension.externals import read_csv_data
 
 from sagemaker_containers.beta.framework import (
     content_types, encoders, env, modules, transformer, worker)
@@ -70,7 +69,7 @@ feature_columns_dtype = {
     'Intl Charge' :  np.float64,
     'CustServ Calls' :  np.int64}
 
-label_column_dtype = {'Churn?': str} # +1.5 gives the age in years
+label_column_dtype = {'Churn?': str} # 
 
 def merge_two_dicts(x, y):
     z = x.copy()   # start with x's keys and values
@@ -87,20 +86,17 @@ def _is_feature_transform():
 
 
 if __name__ == '__main__':
-    print("===main===")
+
     parser = argparse.ArgumentParser()
 
     # Sagemaker specific arguments. Defaults are set in the environment variables.
     parser.add_argument('--output-data-dir', type=str, default=os.environ['SM_OUTPUT_DATA_DIR'])
     parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])
     parser.add_argument('--train', type=str, default=os.environ['SM_CHANNEL_TRAIN'])
-    #parser.add_argument('--transform_mode', type=str, default=os.environ['SM_HP_TRANSFORM_MODE'])
 
 
     args = parser.parse_args()
-    
-    #if _is_feature_transform():
-        # Take the set of files and read them all into a single pandas dataframe
+
     input_files = [ os.path.join(args.train, file) for file in os.listdir(args.train) ]
     if len(input_files) == 0:
         raise ValueError(('There are no files in {}.\n' +
@@ -128,7 +124,7 @@ if __name__ == '__main__':
     'Intl Calls',
     'CustServ Calls'])
 
-    #numeric_features.remove(['State', 'Area Code','Phone' ,'Day Charge', 'Eve Charge', 'Night Charge', 'Intl Charge'])
+
     numeric_transformer = Pipeline(steps=[
         ('imputer', SimpleImputer(strategy='median')),
         ('scaler', StandardScaler())])
@@ -160,41 +156,23 @@ def input_fn(input_data, request_content_type):
     """
     
     
-    print("=== input: feature transform====")
     content_type = request_content_type.lower(
     ) if request_content_type else "text/csv"
     content_type = content_type.split(";")[0].strip()
     
-    print(content_type)
-#    print(input_data)
-    
-    print("****** It is input type")
-    print(type(input_data))
-#     print("****** It is input_data.encode() type")
-#     print(type(input_data.encode()))
-#     test_buf = input_data.encode()
-#     print("****** It is str(byte_buffer,'utf-8')) type")
-#     print(type(str(test_buf,'utf-8')))
     
     if isinstance(input_data, str):
-        print("It is string")
-        #byte_buffer = input_data.encode()
         str_buffer = input_data
     else:
-        print("It is byte")
         str_buffer = str(input_data,'utf-8')
     
-#    print(str_buffer)
-#     s=str(byte_buffer,'utf-8')
-#     print(s)
-    
+
     if _is_feature_transform():
         if content_type == 'text/csv':
             # Read the raw input data as CSV.
             df = pd.read_csv(StringIO(input_data),  header=None)
-            print(df.head())
             if len(df.columns) == len(feature_columns_names) + 1:
-                # This is a labelled example, includes the ring label
+                # This is a labelled example, includes the  label
                 df.columns = feature_columns_names + [label_column]
             elif len(df.columns) == len(feature_columns_names):
                 # This is an unlabelled example.
@@ -208,13 +186,12 @@ def input_fn(input_data, request_content_type):
         if (content_type == 'text/csv' or content_type == 'text/csv; charset=utf-8'):
             # Read the raw input data as CSV.
             df = pd.read_csv(StringIO(str_buffer),  header=None)
-            df.iloc
-            print(df.head())
             logging.info(f"Shape of the requested data: '{df.shape}'")
             return df
         else:
             raise ValueError("{} not supported by script!".format(content_type))
-    print("=== end input====")
+            
+            
 def output_fn(prediction, accept):
     """Format prediction output
     
@@ -223,14 +200,11 @@ def output_fn(prediction, accept):
     container can read the response payload correctly.
     """
     
-    print("=== Output: feature transform====")
-    print(type(prediction))
+    accept = 'text/csv'
     if type(prediction) is not np.ndarray:
         prediction=prediction.toarray()
     
-    print(accept)
-    accept = 'text/csv'
-    print(prediction)
+   
     if accept == "application/json":
         instances = []
         for row in prediction.tolist():
@@ -258,7 +232,6 @@ def predict_fn(input_data, model):
 
     
     if _is_feature_transform():
-        print("=== prediction: feature transform====")
         features = model.transform(input_data)
 
 
@@ -268,9 +241,6 @@ def predict_fn(input_data, model):
         else:
             # Return only the set of features
             return features
-
-    
-    
     
     if _is_inverse_label_transform():
         features = input_data.iloc[:,0]>0.5
@@ -282,6 +252,5 @@ def model_fn(model_dir):
     """Deserialize fitted model
     """
     if _is_feature_transform():
-        print("=== loading the model: feature transform====")
         preprocessor = joblib.load(os.path.join(model_dir, "model.joblib"))
         return preprocessor
